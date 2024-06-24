@@ -2,8 +2,44 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
+import { useEffect } from 'react';
+import { toast } from 'react-toastify';
 
 const Home: NextPage = () => {
+
+  useEffect(() => {
+    readRequest();
+  }, [])
+  const readRequest = async () => {
+    try {
+      const response = await fetch('/api/login');
+      const data = await response.json();
+      console.log(data);
+      toast.success('Get request success');
+    } catch (error) {
+      console.log('error on api request', error);
+    }
+  }
+  
+  const handleSignatureSend = async () => {
+    try {
+      const data = {
+        message: 'This is a POST request',
+      }
+      const response2 = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+      const json = await response2.json()
+      console.log('post info ' , json);
+      toast.success('Post request success');
+    } catch (error) {
+      console.log('error on api request', error);
+    }
+  }
   return (
     <div className={styles.container}>
       <Head>
