@@ -2,40 +2,110 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { useAccount, useSignMessage } from 'wagmi';
+import { initMonitorWebSocket } from '../components/Monitor';
 
 const Home: NextPage = () => {
-
+  const account = useAccount()
+  const { signMessage } = useSignMessage()
+  const [authenticated, setAuthenticated] = useState(false)
+  const onConnectWallet = useCallback(async () => {
+    const token = localStorage.getItem('token')
+    if (!token && account?.isConnected) {
+      console.log('connected wallet', account?.address);
+      
+      requestNonce()
+    } else {
+      setAuthenticated(true)
+    }
+  }, [account.isConnected])
   useEffect(() => {
-    readRequest();
-  }, [])
-  const readRequest = async () => {
+    if (account.isConnected) {
+      onConnectWallet()
+    }
+  }, [account.isConnected, onConnectWallet])
+
+  const requestNonce = async () => {
     try {
-      const response = await fetch('/api/login');
+      const response = await fetch('/api/login?request=nonce');
       const data = await response.json();
       console.log(data);
-      toast.success('Get request success');
+      setTimeout(() => {
+        handleSignMessage(data.nonce)
+      }, 500);
     } catch (error) {
       console.log('error on api request', error);
     }
   }
-  
-  const handleSignatureSend = async () => {
+  const handleSignMessage = async (nonce: string) => {
     try {
-      const data = {
-        message: 'This is a POST request',
-      }
-      const response2 = await fetch('/api/login', {
+      signMessage(
+        {
+          message: nonce,
+        },
+        {
+          onSuccess: (data) => {
+            console.log('signed message', data)
+            onSendSignature(data, nonce)
+          },
+          onError: (error) => {
+            console.log('error signing message', error)
+          },
+        }
+      )
+    } catch (error) {
+      console.log('error signing message', error);
+    }
+  };
+  const onSendSignature = async (data: any, nonce: string) => {
+    try {
+      console.log('onSendSignature', data, nonce);
+      
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
-      })
-      const json = await response2.json()
-      console.log('post info ' , json);
-      toast.success('Post request success');
+        body: JSON.stringify({ 
+          method: 'signature',
+          address: account?.address,
+          signature: data, 
+          nonce 
+        }),
+      });
+      const json = await response.json();
+      console.log(json);
+      localStorage.setItem('token', json.token);
+      toast.success('Wallet authenticated successfully');
+    } catch (error) {
+      console.log('error on api request', error);
+    }
+  }
+  // const handleSignatureSend = async () => {
+  //   try {
+  //     const data = {
+  //       message: 'This is a POST request',
+  //     }
+  //     const response2 = await fetch('/api/login', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(data),
+  //     })
+  //     const json = await response2.json()
+  //     console.log('post info ' , json);
+  //     toast.success('Post request success');
+  //   } catch (error) {
+  //     console.log('error on api request', error);
+  //   }
+  // }
+  const startMonitor = async () => {
+    try {
+      const response = await initMonitorWebSocket()
+      console.log(response);
     } catch (error) {
       console.log('error on api request', error);
     }
@@ -62,6 +132,12 @@ const Home: NextPage = () => {
           {"Let's learn how to build a secure Web3 login system"}
         </p>
 
+        {authenticated && <p className={styles.description}>
+          {`Your account ${account.address} is authenticated: great! Now you can access the app's features.`}
+        </p>}
+        <button onClick={startMonitor} className={styles.card}>
+          Init Monitor
+        </button>
       </main>
 
       <footer className={styles.footer}>

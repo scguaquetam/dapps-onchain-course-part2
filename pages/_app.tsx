@@ -18,7 +18,7 @@ const config = getDefaultConfig({
     arbitrumSepolia,
     ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [arbitrumSepolia] : []),
   ],
-  ssr: true,
+  ssr: false,
 });
 
 const client = new QueryClient();
